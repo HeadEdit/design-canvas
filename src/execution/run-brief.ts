@@ -7,7 +7,7 @@ import {
 } from '../nodes/brief/config';
 import type { NodeRunner, NodeRunnerResult } from './runner-types';
 
-type BriefFields = Omit<BriefConfig, 'generationPrompt' | 'referenceDocumentIds'>;
+type BriefFields = Omit<BriefConfig, 'generationPrompt'>;
 
 export interface BriefRunnerDependencies {
   getClient: () => AiClient | undefined;

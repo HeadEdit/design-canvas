@@ -12,7 +12,7 @@ import {
   type Viewport,
 } from '@xyflow/react';
 import { Button, Tooltip } from 'antd';
-import { Bot, Columns2, Maximize, Play, Plus, Save, Settings, Square, Trash2, ZoomIn, ZoomOut } from 'lucide-react';
+import { Bot, BookOpen, Columns2, Maximize, Play, Plus, Save, Settings, Square, Trash2, ZoomIn, ZoomOut } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import { useStore } from 'zustand';
 
@@ -29,6 +29,7 @@ import { applySelectChanges, pruneSelectedIds } from './node-selection';
 import { WorkflowNodeView } from './WorkflowNode';
 import { DeleteDialog } from './DeleteDialog';
 import { WorkspaceRail } from './WorkspaceRail';
+import { ReferenceLibraryDialog } from '../reference-library/ReferenceLibraryDialog';
 
 export interface WorkbenchProps {
   store: AppStore;
@@ -49,12 +50,14 @@ function WorkbenchCanvas({ store, createEdgeId, onOpenAiSettings, onOpenNode }: 
   const cards = useStore(store, (state) => state.cards);
   const runs = useStore(store, (state) => state.runs);
   const sessions = useStore(store, (state) => state.sessions);
+  const documents = useStore(store, (state) => state.documents);
   const saveStatus = useStore(store, (state) => state.saveStatus);
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [connectionFeedback, setConnectionFeedback] = useState('');
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string>();
   const [railCollapsed, setRailCollapsed] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
   const canvasRef = useRef<HTMLElement>(null);
   const { screenToFlowPosition, zoomIn, zoomOut, fitView } = useReactFlow();
   const openNode = useCallback((nodeId: string) => {
@@ -84,7 +87,7 @@ function WorkbenchCanvas({ store, createEdgeId, onOpenAiSettings, onOpenNode }: 
     onDelete: requestDeleteNode,
     onDisconnectPort: disconnectPort,
     onRun: executionAvailable ? runNode : undefined,
-  }, selectedNodeIds, cards) : [], [workflow, openNode, requestDeleteNode, disconnectPort, runNode, executionAvailable, selectedNodeIds, cards]);
+  }, selectedNodeIds, cards, documents) : [], [workflow, openNode, requestDeleteNode, disconnectPort, runNode, executionAvailable, selectedNodeIds, cards, documents]);
   const flowEdges = useMemo(() => workflow ? toFlowEdges(workflow) : [], [workflow]);
   const focusedNodeId = selectedNodeIds.at(-1);
   const selectedNode = workflow?.nodes.find((node) => node.id === focusedNodeId);
@@ -218,6 +221,7 @@ function WorkbenchCanvas({ store, createEdgeId, onOpenAiSettings, onOpenNode }: 
         </div>
         <div className="toolbar-actions" aria-label="工作流命令">
           <IconButton label="新建工作流" onClick={() => { void store.getState().createWorkflow(); }}><Plus size={17} /></IconButton>
+          <IconButton label="资料库" onClick={() => setLibraryOpen(true)}><BookOpen size={17} /></IconButton>
           <IconButton
             label="运行"
             onClick={runWorkflow}
@@ -284,12 +288,14 @@ function WorkbenchCanvas({ store, createEdgeId, onOpenAiSettings, onOpenNode }: 
           node={selectedNode}
           workflow={workflow}
           cards={cards}
+          documents={documents}
           runs={runs}
           store={store}
           onOpen={canOpenSelectedNode ? openNode : undefined}
         />
       </div>
       <StatusBar nodes={workflow?.nodes ?? []} runs={runs} saveStatus={saveStatus} onRetry={() => void store.getState().saveNow()} />
+      <ReferenceLibraryDialog open={libraryOpen} onClose={() => setLibraryOpen(false)} store={store} />
       <DeleteDialog open={deleteOpen} impact={{ ...deleteImpact, scope: deleteTarget ? 'node' : 'workflow' }} onClose={() => setDeleteOpen(false)} onConfirm={async () => { if (deleteTarget) await store.getState().deleteNode(deleteTarget); else await store.getState().deleteWorkflow(); setDeleteOpen(false); setDeleteTarget(undefined); }} />
     </div>
   );

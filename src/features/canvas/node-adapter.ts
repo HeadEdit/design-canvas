@@ -2,7 +2,7 @@ import type { Edge, Node } from '@xyflow/react';
 import { MarkerType } from '@xyflow/react';
 
 import { isControlEdge } from '../../domain/control-flow';
-import type { CandidateCard, Workflow, WorkflowNode } from '../../domain/model';
+import type { CandidateCard, ReferenceDocument, Workflow, WorkflowNode } from '../../domain/model';
 import type { PortDirection } from '../../domain/node-definitions';
 
 export interface WorkflowNodeCallbacks {
@@ -17,6 +17,7 @@ export type WorkflowFlowNode = Node<{
   callbacks: WorkflowNodeCallbacks;
   workflow?: Workflow;
   cards?: readonly CandidateCard[];
+  documents?: readonly ReferenceDocument[];
   preview?: { title: string; concept: string };
 }, 'workflow'>;
 
@@ -25,6 +26,7 @@ export function toFlowNodes(
   callbacks: WorkflowNodeCallbacks = {},
   selectedNodeIds: readonly string[] = [],
   cards: readonly CandidateCard[] = [],
+  documents: readonly ReferenceDocument[] = [],
 ): WorkflowFlowNode[] {
   const selected = new Set(selectedNodeIds);
   return workflow.nodes.map((node) => ({
@@ -38,6 +40,7 @@ export function toFlowNodes(
       callbacks,
       workflow,
       cards,
+      documents,
     },
   }));
 }

@@ -3,7 +3,7 @@ import { defaultContentExtractConfig } from './config';
 
 export const contentExtractDefinition = freezeDefinition({
   kind: 'contentExtract',
-  category: 'processing',
+  category: 'generate',
   label: '内容提炼',
   inputs: [
     { id: 'exec', label: '执行', type: 'Control', optional: true },

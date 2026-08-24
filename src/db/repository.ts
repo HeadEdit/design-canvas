@@ -5,6 +5,7 @@ import type {
   CandidateCard,
   ChatSession,
   NodeRun,
+  ReferenceDocument,
   Workflow,
 } from '../domain/model';
 import {
@@ -20,6 +21,7 @@ export interface WorkspaceSnapshot {
   runs: NodeRun[];
   cards: CandidateCard[];
   sessions: ChatSession[];
+  documents: ReferenceDocument[];
 }
 
 export interface WorkspaceRepository {
@@ -44,10 +46,10 @@ export class StorageError extends Error {
   }
 }
 
-type ChildStoreName = 'runs' | 'cards' | 'sessions';
+type ChildStoreName = 'runs' | 'cards' | 'sessions' | 'documents';
 type WorkspaceTransaction = IDBPTransaction<
   WorkspaceDatabaseSchema,
-  ['workflows', 'runs', 'cards', 'sessions'],
+  ['workflows', 'runs', 'cards', 'sessions', 'documents'],
   'readwrite'
 >;
 
@@ -142,7 +144,7 @@ export function createWorkspaceRepository(
       try {
         const db = await getDatabase();
         const transaction = db.transaction(
-          ['workflows', 'runs', 'cards', 'sessions'],
+          ['workflows', 'runs', 'cards', 'sessions', 'documents'],
           'readonly',
         );
         const workflow = await transaction.objectStore('workflows').get(id);
@@ -152,10 +154,11 @@ export function createWorkspaceRepository(
           return undefined;
         }
 
-        const [runs, cards, sessions] = await Promise.all([
+        const [runs, cards, sessions, documents] = await Promise.all([
           transaction.objectStore('runs').index('workflowId').getAll(id),
           transaction.objectStore('cards').index('workflowId').getAll(id),
           transaction.objectStore('sessions').index('workflowId').getAll(id),
+          transaction.objectStore('documents').index('workflowId').getAll(id),
         ]);
         await transaction.done;
 
@@ -164,6 +167,7 @@ export function createWorkspaceRepository(
           runs: fromPersistedChildren(runs),
           cards: fromPersistedChildren(cards),
           sessions: fromPersistedChildren(sessions),
+          documents: fromPersistedChildren(documents),
         };
       } catch {
         throw storageError();
@@ -177,19 +181,21 @@ export function createWorkspaceRepository(
       try {
         const db = await getDatabase();
         transaction = db.transaction(
-          ['workflows', 'runs', 'cards', 'sessions'],
+          ['workflows', 'runs', 'cards', 'sessions', 'documents'],
           'readwrite',
         );
         const workflowStore = transaction.objectStore('workflows');
         const runsStore = transaction.objectStore('runs');
         const cardsStore = transaction.objectStore('cards');
         const sessionsStore = transaction.objectStore('sessions');
+        const documentsStore = transaction.objectStore('documents');
 
         await workflowStore.put(snapshot.workflow);
         await Promise.all([
           deleteChildrenForWorkflow(runsStore, snapshot.workflow.id),
           deleteChildrenForWorkflow(cardsStore, snapshot.workflow.id),
           deleteChildrenForWorkflow(sessionsStore, snapshot.workflow.id),
+          deleteChildrenForWorkflow(documentsStore, snapshot.workflow.id),
         ]);
 
         for (const child of toPersistedChildren(snapshot.runs)) {
@@ -200,6 +206,9 @@ export function createWorkspaceRepository(
         }
         for (const child of toPersistedChildren(snapshot.sessions)) {
           await sessionsStore.add(child);
+        }
+        for (const child of toPersistedChildren(snapshot.documents)) {
+          await documentsStore.add(child);
         }
         await transaction.done;
       } catch {
@@ -215,7 +224,7 @@ export function createWorkspaceRepository(
       try {
         const db = await getDatabase();
         transaction = db.transaction(
-          ['workflows', 'runs', 'cards', 'sessions'],
+          ['workflows', 'runs', 'cards', 'sessions', 'documents'],
           'readwrite',
         );
         await transaction.objectStore('workflows').delete(id);
@@ -223,6 +232,7 @@ export function createWorkspaceRepository(
           deleteChildrenForWorkflow(transaction.objectStore('runs'), id),
           deleteChildrenForWorkflow(transaction.objectStore('cards'), id),
           deleteChildrenForWorkflow(transaction.objectStore('sessions'), id),
+          deleteChildrenForWorkflow(transaction.objectStore('documents'), id),
         ]);
         await transaction.done;
       } catch {

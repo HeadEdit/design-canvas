@@ -149,3 +149,16 @@ export interface AiSettings {
   model: string;
   thinkingEnabled: boolean;
 }
+
+export type ReferenceDocumentFormat = 'manual' | 'md' | 'txt';
+
+export interface ReferenceDocument {
+  id: string;
+  workflowId: string;
+  title: string;
+  content: string;
+  format: ReferenceDocumentFormat;
+  sourceName?: string;
+  createdAt: string;
+  updatedAt: string;
+}

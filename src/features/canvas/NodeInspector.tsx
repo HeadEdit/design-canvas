@@ -1,6 +1,6 @@
 import { Button } from 'antd';
 
-import type { CandidateCard, NodeRun, Workflow, WorkflowNode } from '../../domain/model';
+import type { CandidateCard, NodeRun, ReferenceDocument, Workflow, WorkflowNode } from '../../domain/model';
 import { getAiErrorMessage } from '../../ai/error-messages';
 import { CARD_VARIABLE_SOURCE_REQUIRED } from '../../domain/require-card-variable-source';
 import { lookupNodeUiPlugin } from '../nodes/ui-registry';
@@ -22,6 +22,7 @@ export interface NodeInspectorProps {
   node?: WorkflowNode;
   workflow?: Workflow;
   cards?: readonly CandidateCard[];
+  documents?: readonly ReferenceDocument[];
   runs: readonly NodeRun[];
   store?: AppStore;
   onOpen?: (nodeId: string) => void;
@@ -31,6 +32,7 @@ export function NodeInspector({
   node,
   workflow,
   cards,
+  documents,
   runs,
   store,
   onOpen,
@@ -59,6 +61,7 @@ export function NodeInspector({
             config={parsed.config}
             workflow={workflow}
             cards={cards}
+            documents={documents}
             patchConfig={(patch: unknown) => store.getState().patchNodeConfig(node.id, patch)}
           />
         )}

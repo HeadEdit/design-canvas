@@ -97,7 +97,7 @@ function PortRow({
 }
 
 export function WorkflowNodeView({ id, data, selected }: NodeProps<WorkflowFlowNode>) {
-  const { domainNode, callbacks, workflow, cards, preview } = data;
+  const { domainNode, callbacks, workflow, cards, documents, preview } = data;
   const definition = lookupNodeDefinition(domainNode.kind);
   const uiPlugin = lookupNodeUiPlugin(domainNode.kind);
   const inspection = builtinNodePlatform.inspectNode(domainNode.kind, domainNode.config);
@@ -112,9 +112,9 @@ export function WorkflowNodeView({ id, data, selected }: NodeProps<WorkflowFlowN
 
   const node = (
             <article
-      className={`workflow-node workflow-node--${domainNode.status}${selected ? ' is-selected' : ''}${definition?.category === 'content' ? ' workflow-node--content' : ''}`}
+      className={`workflow-node workflow-node--${domainNode.status}${selected ? ' is-selected' : ''}${definition?.category === 'select' ? ' workflow-node--select' : ''}`}
       data-testid="workflow-node"
-      {...(definition?.category === 'content' ? { 'data-node-category': 'content' } : {})}
+      {...(definition?.category === 'select' ? { 'data-node-category': 'select' } : {})}
       aria-label={`${label}，${availability === 'plugin-unavailable' ? '节点插件不可用' : availability === 'invalid-config' ? '节点配置无效' : status}`}
       style={theme ? {
         ['--node-header-bg' as string]: theme.headerBackground,
@@ -159,6 +159,7 @@ export function WorkflowNodeView({ id, data, selected }: NodeProps<WorkflowFlowN
               config={parsed.config}
               workflow={workflow}
               cards={cards}
+              documents={documents}
             />
           ) : null}
           {showRun ? (

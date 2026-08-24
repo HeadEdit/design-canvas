@@ -3,7 +3,7 @@ import { defaultBriefConfig } from './config';
 
 export const briefDefinition = freezeDefinition({
   kind: 'brief',
-  category: 'input',
+  category: 'generate',
   label: 'Brief',
   inputs: [
     { id: 'exec', label: '执行', type: 'Control', optional: true },

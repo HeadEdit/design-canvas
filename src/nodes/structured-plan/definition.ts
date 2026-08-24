@@ -3,7 +3,7 @@ import { defaultStructuredPlanConfig } from './config';
 
 export const structuredPlanDefinition = freezeDefinition({
   kind: 'structuredPlan',
-  category: 'processing',
+  category: 'generate',
   label: '结构化策划案',
   inputs: [
     { id: 'exec', label: '执行', type: 'Control', optional: true },

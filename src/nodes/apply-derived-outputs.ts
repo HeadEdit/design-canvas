@@ -1,10 +1,11 @@
-import type { CandidateCard, NodeOutput, Workflow } from '../domain/model';
+import type { CandidateCard, NodeOutput, ReferenceDocument, Workflow } from '../domain/model';
 import { builtinNodePlatform } from './builtins';
 import type { NodePlatform } from './create-node-platform';
 
 export function applyDerivedNodeOutputs(
   workflow: Workflow,
   cards: readonly CandidateCard[],
+  documents: readonly ReferenceDocument[] = [],
   platform: NodePlatform = builtinNodePlatform,
 ): Workflow {
   let current = workflow;
@@ -28,6 +29,7 @@ export function applyDerivedNodeOutputs(
           config: parsed.data,
           workflow: current,
           cards,
+          documents,
         });
         return { ...node, output };
       }),

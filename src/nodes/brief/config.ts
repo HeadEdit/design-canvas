@@ -23,7 +23,6 @@ export const briefConfigSchema = z.object({
   successMetrics: z.string().default(''),
   outOfScope: z.string().default(''),
   generationPrompt: z.string().default(DEFAULT_BRIEF_GENERATION_PROMPT),
-  referenceDocumentIds: z.array(z.string()).default([]),
 });
 
 export type BriefConfig = z.infer<typeof briefConfigSchema>;

@@ -3,7 +3,7 @@ import { defaultDivergenceConfig } from './config';
 
 export const divergenceDefinition = freezeDefinition({
   kind: 'divergence',
-  category: 'processing',
+  category: 'generate',
   label: '发散',
   inputs: [
     { id: 'exec', label: '执行', type: 'Control', optional: true },

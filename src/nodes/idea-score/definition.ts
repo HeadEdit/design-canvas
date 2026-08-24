@@ -3,7 +3,7 @@ import { defaultIdeaScoreConfig } from './config';
 
 export const ideaScoreDefinition = freezeDefinition({
   kind: 'ideaScore',
-  category: 'processing',
+  category: 'generate',
   label: '创意评分',
   inputs: [
     { id: 'exec', label: '执行', type: 'Control', optional: true },

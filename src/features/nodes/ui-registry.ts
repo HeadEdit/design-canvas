@@ -51,11 +51,8 @@ export const nodeLabels: Record<string, string> = Object.fromEntries(
 
 const categoryLabels: Record<NodeCategory, string> = {
   variable: '变量',
-  input: '输入',
-  processing: '处理',
-  interaction: '交互',
-  output: '输出',
-  content: '内容',
+  generate: 'AI 生成',
+  select: '筛选数据',
 };
 
 export function nodeLibraryGroups(): Array<{

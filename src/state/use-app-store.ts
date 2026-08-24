@@ -8,6 +8,7 @@ import type {
   NodeKind,
   NodeOutput,
   NodeRun,
+  ReferenceDocument,
   Viewport,
   Workflow,
   WorkflowEdge,
@@ -88,6 +89,7 @@ export interface AppState {
   runs: NodeRun[];
   cards: CandidateCard[];
   sessions: ChatSession[];
+  documents: ReferenceDocument[];
   saveStatus: SaveStatus;
   navigationError?: NavigationError;
   runtimeError?: NavigationError;
@@ -128,6 +130,9 @@ export interface AppState {
   runControlChain(selectedNodeId?: string): Promise<void>;
   stopNode(nodeId: string): void;
   getHostCapabilities(): NodeHostCapabilities;
+  addDocument(input: { title: string; content: string; format: ReferenceDocument['format']; sourceName?: string }): string;
+  updateDocument(id: string, patch: { title?: string; content?: string }): void;
+  deleteDocument(id: string): void;
   saveNow(): Promise<void>;
   exportCurrentWorkspace(): Promise<
     | { ok: true; file: WorkspaceExportFileV1 }
@@ -158,11 +163,13 @@ function migrateLoadedWorkflow(
   workflow: Workflow,
   cards: readonly CandidateCard[],
   sessions: readonly ChatSession[],
+  documents: readonly ReferenceDocument[],
   id: () => string,
 ): { workflow: Workflow; cards: CandidateCard[] } {
   const nextWorkflow = applyDerivedNodeOutputs(
     withChatTextStructOutputs(ensureContainment(workflow, id), sessions),
     cards,
+    documents,
   );
   return {
     workflow: nextWorkflow,
@@ -199,6 +206,7 @@ export function createAppStore(dependencies: AppStoreDependencies): AppStore {
       runs: state.runs,
       cards: state.cards,
       sessions: state.sessions,
+      documents: state.documents,
     };
   };
 
@@ -247,8 +255,8 @@ export function createAppStore(dependencies: AppStoreDependencies): AppStore {
 
   const ownsNavigation = (generation: number): boolean => generation === navigationGeneration;
 
-  const commitWorkflow = (workflow: Workflow, cards = store.getState().cards): Workflow => (
-    applyDerivedNodeOutputs({ ...workflow, updatedAt: dependencies.now() }, cards)
+  const commitWorkflow = (workflow: Workflow, cards = store.getState().cards, documents = store.getState().documents): Workflow => (
+    applyDerivedNodeOutputs({ ...workflow, updatedAt: dependencies.now() }, cards, documents)
   );
 
   const updateWorkflow = (
@@ -332,6 +340,7 @@ export function createAppStore(dependencies: AppStoreDependencies): AppStore {
       const workflow = applyDerivedNodeOutputs(
         { ...current, updatedAt: dependencies.now() },
         store.getState().cards,
+        store.getState().documents,
       );
       store.setState((state) => ({
         workflow,
@@ -351,7 +360,11 @@ export function createAppStore(dependencies: AppStoreDependencies): AppStore {
     const current = store.getState().workflow;
     if (current) {
       const now = dependencies.now();
-      let workflow = applyDerivedNodeOutputs({ ...current, updatedAt: now }, store.getState().cards);
+      let workflow = applyDerivedNodeOutputs(
+        { ...current, updatedAt: now },
+        store.getState().cards,
+        store.getState().documents,
+      );
       if (typeof patch.title === 'string') {
         workflow = syncIdeaScoreReportTitlesInWorkflow(workflow, cardId, patch.title);
       }
@@ -382,7 +395,7 @@ export function createAppStore(dependencies: AppStoreDependencies): AppStore {
       cardId,
     );
 
-    workflow = applyDerivedNodeOutputs(workflow, nextCards);
+    workflow = applyDerivedNodeOutputs(workflow, nextCards, store.getState().documents);
     store.setState((state) => ({
       workflow,
       workflows: state.workflows.map((item) => item.id === workflow.id ? workflow : item),
@@ -761,7 +774,7 @@ export function createAppStore(dependencies: AppStoreDependencies): AppStore {
                 ...(replacesOutput ? { output: result.output } : {}),
               } as WorkflowNode
             : item),
-        }, nextCards);
+        }, nextCards, afterEffects.documents);
         if (registration.descendantInvalidation === 'on-output-commit' && replacesOutput) {
           nextWorkflow = markDescendantsStale(nextWorkflow, node.id);
         }
@@ -809,6 +822,7 @@ export function createAppStore(dependencies: AppStoreDependencies): AppStore {
     runs: [],
     cards: [],
     sessions: [],
+    documents: [],
     saveStatus: 'idle',
     initialized: false,
     settings: { baseUrl: '', apiKey: '', model: '', thinkingEnabled: false },
@@ -881,7 +895,7 @@ export function createAppStore(dependencies: AppStoreDependencies): AppStore {
       }
       if (workflows.length === 0) {
         const workflow = createDefaultWorkflow(dependencies);
-        const empty: WorkspaceSnapshot = { workflow, runs: [], cards: [], sessions: [] };
+        const empty: WorkspaceSnapshot = { workflow, runs: [], cards: [], sessions: [], documents: [] };
         bumpRevision(workflow.id);
         workflowActivationGeneration += 1;
         set({
@@ -890,6 +904,7 @@ export function createAppStore(dependencies: AppStoreDependencies): AppStore {
           runs: [],
           cards: [],
           sessions: [],
+          documents: [],
           initialized: true,
           saveStatus: 'saving',
           navigationError: undefined,
@@ -922,6 +937,7 @@ export function createAppStore(dependencies: AppStoreDependencies): AppStore {
           loaded.workflow,
           loaded.cards,
           sessions,
+          loaded.documents,
           dependencies.id,
         );
         workflowActivationGeneration += 1;
@@ -950,7 +966,7 @@ export function createAppStore(dependencies: AppStoreDependencies): AppStore {
       if (name?.trim()) {
         workflow = { ...workflow, name: name.trim() };
       }
-      const empty: WorkspaceSnapshot = { workflow, runs: [], cards: [], sessions: [] };
+      const empty: WorkspaceSnapshot = { workflow, runs: [], cards: [], sessions: [], documents: [] };
       bumpRevision(workflow.id);
       workflowActivationGeneration += 1;
       set({
@@ -959,6 +975,7 @@ export function createAppStore(dependencies: AppStoreDependencies): AppStore {
         runs: [],
         cards: [],
         sessions: [],
+        documents: [],
         navigationError: undefined,
         saveStatus: 'saving',
       });
@@ -987,7 +1004,7 @@ export function createAppStore(dependencies: AppStoreDependencies): AppStore {
       if (!next) {
         const fresh = createDefaultWorkflow(dependencies);
         bumpRevision(fresh.id);
-        const empty: WorkspaceSnapshot = { workflow: fresh, runs: [], cards: [], sessions: [] };
+        const empty: WorkspaceSnapshot = { workflow: fresh, runs: [], cards: [], sessions: [], documents: [] };
         workflowActivationGeneration += 1;
         set({
           workflow: fresh,
@@ -995,6 +1012,7 @@ export function createAppStore(dependencies: AppStoreDependencies): AppStore {
           runs: [],
           cards: [],
           sessions: [],
+          documents: [],
           navigationError: undefined,
           saveStatus: 'saving',
         });
@@ -1060,6 +1078,7 @@ export function createAppStore(dependencies: AppStoreDependencies): AppStore {
         runs: nextRuns,
         cards: nextCards,
         sessions: nextSessions,
+        documents: get().documents,
       };
       set((state) => ({
         workflow: nextWorkflow,
@@ -1102,6 +1121,7 @@ export function createAppStore(dependencies: AppStoreDependencies): AppStore {
           loaded.workflow,
           loaded.cards,
           sessions,
+          loaded.documents,
           dependencies.id,
         );
         workflowActivationGeneration += 1;
@@ -1330,6 +1350,49 @@ export function createAppStore(dependencies: AppStoreDependencies): AppStore {
       return hostCapabilities();
     },
 
+    addDocument(input) {
+      const now = dependencies.now();
+      const doc: ReferenceDocument = {
+        id: dependencies.id(),
+        workflowId: get().workflow?.id ?? '',
+        title: input.title,
+        content: input.content,
+        format: input.format,
+        ...(input.sourceName ? { sourceName: input.sourceName } : {}),
+        createdAt: now,
+        updatedAt: now,
+      };
+      set((state) => ({ documents: [...state.documents, doc] }));
+      markDirty();
+      return doc.id;
+    },
+
+    updateDocument(id, patch) {
+      const now = dependencies.now();
+      set((state) => ({
+        documents: state.documents.map((doc) => doc.id === id
+          ? { ...doc, ...patch, updatedAt: now }
+          : doc),
+      }));
+      markDirty();
+    },
+
+    deleteDocument(id) {
+      set((state) => ({ documents: state.documents.filter((doc) => doc.id !== id) }));
+      const workflow = get().workflow;
+      if (workflow) {
+        for (const node of workflow.nodes) {
+          if (node.kind !== 'reference') continue;
+          const config = node.config as { documentIds?: string[] };
+          const ids = Array.isArray(config.documentIds) ? config.documentIds : [];
+          if (ids.includes(id)) {
+            get().patchNodeConfig(node.id, { documentIds: ids.filter((item) => item !== id) });
+          }
+        }
+      }
+      markDirty();
+    },
+
     async saveNow() {
       const snapshot = currentSnapshot();
       if (!snapshot) {
@@ -1395,6 +1458,7 @@ export function createAppStore(dependencies: AppStoreDependencies): AppStore {
         runs: imported.runs,
         cards: imported.cards,
         sessions: imported.sessions,
+        documents: imported.documents,
         saveStatus: 'saved',
         navigationError: undefined,
       }));

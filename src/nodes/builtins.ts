@@ -6,6 +6,7 @@ import { contentExtractPlugin } from './content-extract';
 import { createNodePlatform } from './create-node-platform';
 import { divergencePlugin } from './divergence';
 import { ideaScorePlugin } from './idea-score';
+import { referencePlugin } from './reference';
 import { structuredPlanPlugin } from './structured-plan';
 import { textSelectPlugin } from './text-select';
 
@@ -17,6 +18,7 @@ export const builtinNodePlugins = [
   chatPlugin,
   cardContentPlugin,
   textSelectPlugin,
+  referencePlugin,
   contentExtractPlugin,
   structuredPlanPlugin,
 ] as const;

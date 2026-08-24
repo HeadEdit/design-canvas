@@ -4,6 +4,7 @@ import type { WorkspaceSnapshot } from '../db/repository';
 import type {
   ChatSession,
   NodeOutput,
+  ReferenceDocument,
   TextStructItem,
   WorkflowNode,
 } from '../domain/model';
@@ -146,11 +147,22 @@ const sessionSchema = z.object({
   createdAt: timestamp,
   updatedAt: timestamp,
 }).strict();
+const documentSchema = z.object({
+  id,
+  workflowId: id,
+  title: z.string(),
+  content: z.string(),
+  format: z.enum(['manual', 'md', 'txt']),
+  sourceName: z.string().optional(),
+  createdAt: timestamp,
+  updatedAt: timestamp,
+}).strict();
 const snapshotSchema = z.object({
   workflow: workflowSchema,
   runs: z.array(runSchema),
   cards: z.array(cardSchema),
   sessions: z.array(sessionSchema),
+  documents: z.array(documentSchema),
 }).strict();
 const exportSchema = z.object({
   format: z.union([
@@ -179,19 +191,26 @@ function allTextItems(snapshot: WorkspaceSnapshot): TextStructItem[] {
   ];
 }
 
-function validateConfigReferences(node: WorkflowNode, cardIds: Set<string>, itemIds: Set<string>): void {
+function validateConfigReferences(
+  node: WorkflowNode,
+  cardIds: Set<string>,
+  itemIds: Set<string>,
+  documentIds: Set<string>,
+): void {
   const config = node.config as Record<string, unknown>;
   const requireOptional = (value: unknown, values: Set<string>) => {
     if (typeof value === 'string' && value !== '' && !values.has(value)) fail();
   };
   if (node.kind === 'cardContent') requireOptional(config.sourceCardId, cardIds);
   if (node.kind === 'textSelect') requireOptional(config.sourceItemId, itemIds);
-  if (node.kind === 'brief' && Array.isArray(config.referenceDocumentIds)) {
-    for (const value of config.referenceDocumentIds) requireOptional(value, itemIds);
-  }
   if (node.kind === 'ideaScore') {
     const report = config.report as { cards?: Array<{ cardId?: unknown }> } | null;
     for (const entry of report?.cards ?? []) requireOptional(entry.cardId, cardIds);
+  }
+  if (node.kind === 'reference') {
+    for (const value of (config.documentIds as string[] | undefined) ?? []) {
+      requireOptional(value, documentIds);
+    }
   }
 }
 
@@ -207,13 +226,15 @@ function validateWorkspaceSnapshot(value: WorkspaceSnapshot): WorkspaceSnapshot 
   const nodeIds = new Set(nodeIdList);
   const cardIds = new Set(cardIdList);
   const itemIds = new Set(allTextItems(value).map((item) => item.id));
+  const documentIds = new Set(value.documents.map((doc) => doc.id));
   if (!unique(nodeIdList)
     || !unique(value.workflow.edges.map((edge) => edge.id))
     || !unique(value.workflow.containmentEdges.map((edge) => edge.id))
     || !unique(runIdList)
     || !unique(cardIdList)
     || !unique(sessionIdList)
-    || !unique(conversationIdList)) fail();
+    || !unique(conversationIdList)
+    || !unique(value.documents.map((doc) => doc.id))) fail();
 
   for (const node of value.workflow.nodes) {
     const plugin = builtinNodePlatform.lookup(node.kind);
@@ -230,7 +251,7 @@ function validateWorkspaceSnapshot(value: WorkspaceSnapshot): WorkspaceSnapshot 
         if (item.conversationId && !conversationIdList.includes(item.conversationId)) fail();
       }
     }
-    validateConfigReferences(node, cardIds, itemIds);
+    validateConfigReferences(node, cardIds, itemIds, documentIds);
   }
   for (const edge of value.workflow.edges) {
     const source = value.workflow.nodes.find((node) => node.id === edge.sourceNodeId);
@@ -250,6 +271,9 @@ function validateWorkspaceSnapshot(value: WorkspaceSnapshot): WorkspaceSnapshot 
   for (const card of value.cards) {
     // Cards may outlive producing runs after divergence deletion (owned by cardVariable).
     if (card.workflowId !== workflowId) fail();
+  }
+  for (const doc of value.documents) {
+    if (doc.workflowId !== workflowId) fail();
   }
   for (const session of value.sessions) validateSession(session, workflowId, nodeIds, cardIds);
   return value;
@@ -389,6 +413,7 @@ function remapConfig(
   cards: IdMap,
   items: IdMap,
   modules: IdMap,
+  documents: IdMap,
 ): unknown {
   const config = structuredClone(node.config) as Record<string, unknown>;
   if (node.kind === 'cardContent' && typeof config.sourceCardId === 'string') {
@@ -397,12 +422,12 @@ function remapConfig(
   if (node.kind === 'textSelect' && typeof config.sourceItemId === 'string') {
     config.sourceItemId = optional(items, config.sourceItemId);
   }
-  if (node.kind === 'brief' && Array.isArray(config.referenceDocumentIds)) {
-    config.referenceDocumentIds = config.referenceDocumentIds.map((value) => required(items, String(value)));
-  }
   if (node.kind === 'ideaScore' && config.report && typeof config.report === 'object') {
     const report = config.report as { cards?: Array<{ cardId: string }> };
     report.cards = report.cards?.map((entry) => ({ ...entry, cardId: required(cards, entry.cardId) }));
+  }
+  if (node.kind === 'reference' && Array.isArray(config.documentIds)) {
+    config.documentIds = config.documentIds.map((value) => required(documents, String(value)));
   }
   if (node.kind === 'structuredPlan') {
     for (const key of ['modules', 'candidateModules'] as const) {
@@ -441,6 +466,7 @@ export function cloneWorkspaceForImport(
     const config = node.config as { modules?: Array<{ id: string }>; candidateModules?: Array<{ id: string }> | null };
     return [...(config.modules ?? []), ...(config.candidateModules ?? [])].map((module) => module.id);
   }), dependencies.id);
+  const documents = allocate(source.documents.map((doc) => doc.id), dependencies.id);
   const sourceItems = allTextItems(source);
   const items = new Map<string, string>(modules);
   for (const item of sourceItems) {
@@ -466,7 +492,7 @@ export function cloneWorkspaceForImport(
       nodes: source.workflow.nodes.map((node) => ({
         ...node,
         id: required(nodes, node.id),
-        config: remapConfig(node, cards, items, modules),
+        config: remapConfig(node, cards, items, modules, documents),
         ...(node.currentRunId ? { currentRunId: required(runs, node.currentRunId) } : {}),
         ...(node.output
           ? { output: remapOutput(node.output, cards, items, turns, conversations) }
@@ -517,6 +543,11 @@ export function cloneWorkspaceForImport(
         } : {}),
       })),
       items: session.items.map((item) => remapItem(item, items, turns, conversations)),
+    })),
+    documents: source.documents.map((doc) => ({
+      ...doc,
+      id: required(documents, doc.id),
+      workflowId,
     })),
   };
   return validateWorkspaceSnapshot(snapshotSchema.parse(clone));

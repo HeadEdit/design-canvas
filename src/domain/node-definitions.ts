@@ -5,10 +5,11 @@ import { chatDefinition } from '../nodes/chat/definition';
 import { contentExtractDefinition } from '../nodes/content-extract/definition';
 import { divergenceDefinition } from '../nodes/divergence/definition';
 import { ideaScoreDefinition } from '../nodes/idea-score/definition';
+import { referenceDefinition } from '../nodes/reference/definition';
 import { structuredPlanDefinition } from '../nodes/structured-plan/definition';
 import { textSelectDefinition } from '../nodes/text-select/definition';
 import type { NodeKind, PortDataType } from './model';
-export type NodeCategory = 'variable' | 'input' | 'processing' | 'interaction' | 'output' | 'content';
+export type NodeCategory = 'variable' | 'generate' | 'select';
 export type PortDirection = 'input' | 'output';
 
 export interface NodePort {
@@ -36,6 +37,7 @@ export const nodeDefinitions: readonly NodeDefinition[] = Object.freeze([
   chatDefinition,
   cardContentDefinition,
   textSelectDefinition,
+  referenceDefinition,
   contentExtractDefinition,
   structuredPlanDefinition,
 ]);

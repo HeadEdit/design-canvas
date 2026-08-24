@@ -11,6 +11,7 @@ import type {
   ChatSession,
   NodeDisplayStatus,
   NodeOutput,
+  ReferenceDocument,
   Workflow,
   WorkflowNode,
 } from '../domain/model';
@@ -139,6 +140,7 @@ export interface DerivedOutputContext<Config> {
   readonly config: Config;
   readonly workflow: Workflow;
   readonly cards: readonly CandidateCard[];
+  readonly documents: readonly ReferenceDocument[];
 }
 
 export interface ExecutionEffectContext<Config> {
@@ -182,6 +184,7 @@ export interface NodeInspectorContext<Config> {
   config: Config;
   workflow?: Workflow;
   cards?: readonly CandidateCard[];
+  documents?: readonly ReferenceDocument[];
   patchConfig(patch: unknown): ConfigPatchResult;
 }
 
@@ -190,6 +193,7 @@ export interface NodeCanvasContext<Config> {
   config: Config;
   workflow?: Workflow;
   cards?: readonly CandidateCard[];
+  documents?: readonly ReferenceDocument[];
 }
 
 export interface NodeDialogContext<Config> {

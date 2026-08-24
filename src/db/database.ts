@@ -5,6 +5,7 @@ import type {
   CandidateCard,
   ChatSession,
   NodeRun,
+  ReferenceDocument,
   Workflow,
 } from '../domain/model';
 
@@ -22,6 +23,11 @@ export interface WorkspaceDatabaseSchema extends DBSchema {
   runs: {
     key: string;
     value: PersistedChild<NodeRun>;
+    indexes: { workflowId: string };
+  };
+  documents: {
+    key: string;
+    value: PersistedChild<ReferenceDocument>;
     indexes: { workflowId: string };
   };
   cards: {
@@ -44,7 +50,7 @@ function createWorkspaceDatabase(
   dbName: string,
 ): Promise<IDBPDatabase<WorkspaceDatabaseSchema>> {
   let connection: IDBPDatabase<WorkspaceDatabaseSchema> | undefined;
-  const opening = openDB<WorkspaceDatabaseSchema>(dbName, 1, {
+  const opening = openDB<WorkspaceDatabaseSchema>(dbName, 2, {
     upgrade(database) {
       if (!database.objectStoreNames.contains('workflows')) {
         database.createObjectStore('workflows', { keyPath: 'id' });
@@ -53,6 +59,11 @@ function createWorkspaceDatabase(
       if (!database.objectStoreNames.contains('runs')) {
         const runs = database.createObjectStore('runs', { keyPath: 'id' });
         runs.createIndex('workflowId', 'workflowId');
+      }
+
+      if (!database.objectStoreNames.contains('documents')) {
+        const documents = database.createObjectStore('documents', { keyPath: 'id' });
+        documents.createIndex('workflowId', 'workflowId');
       }
 
       if (!database.objectStoreNames.contains('cards')) {

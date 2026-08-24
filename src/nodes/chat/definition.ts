@@ -3,7 +3,7 @@ import { defaultChatConfig } from './config';
 
 export const chatDefinition = freezeDefinition({
   kind: 'chat',
-  category: 'interaction',
+  category: 'generate',
   label: '聊天',
   inputs: [
     { id: 'text', label: '文本', type: 'Text[]', optional: true },
