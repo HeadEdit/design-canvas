@@ -12,7 +12,7 @@ import {
   type Viewport,
 } from '@xyflow/react';
 import { Button, Tooltip } from 'antd';
-import { Bot, BookOpen, Columns2, Maximize, Play, Plus, Save, Settings, Square, Trash2, ZoomIn, ZoomOut } from 'lucide-react';
+import { Bot, BookOpen, Maximize, Play, Settings, Square, Trash2, ZoomIn, ZoomOut } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import { useStore } from 'zustand';
 
@@ -41,8 +41,21 @@ export interface WorkbenchProps {
 const nodeTypes = { workflow: WorkflowNodeView };
 const validKinds = new Set(nodeUiPlugins.map((plugin) => plugin.kind));
 
-function IconButton({ label, children, onClick, disabled, disabledReason }: { label: string; children: React.ReactNode; onClick: () => void; disabled?: boolean; disabledReason?: string }) {
-  return <Tooltip title={disabled && disabledReason ? disabledReason : label}><Button className="tool-button" aria-label={label} title={disabled && disabledReason ? disabledReason : undefined} icon={children} onClick={onClick} disabled={disabled} /></Tooltip>;
+function IconButton({ label, children, onClick, disabled, disabledReason, showLabel }: { label: string; children: React.ReactNode; onClick: () => void; disabled?: boolean; disabledReason?: string; showLabel?: boolean }) {
+  return (
+    <Tooltip title={disabled && disabledReason ? disabledReason : label}>
+      <Button
+        className={showLabel ? 'tool-button tool-button--labeled' : 'tool-button'}
+        aria-label={label}
+        title={disabled && disabledReason ? disabledReason : undefined}
+        icon={children}
+        onClick={onClick}
+        disabled={disabled}
+      >
+        {showLabel ? label : undefined}
+      </Button>
+    </Tooltip>
+  );
 }
 
 function WorkbenchCanvas({ store, createEdgeId, onOpenAiSettings, onOpenNode }: WorkbenchProps) {
@@ -208,20 +221,13 @@ function WorkbenchCanvas({ store, createEdgeId, onOpenAiSettings, onOpenNode }: 
     <div className="workbench">
       <header className="workbench-toolbar">
         <div className="brand"><Bot size={20} aria-hidden="true" /><h1>DesignCanvas</h1></div>
-        <IconButton
-          label="切换工作区面板"
-          onClick={() => setRailCollapsed((current) => !current)}
-        >
-          <Columns2 size={17} />
-        </IconButton>
         <div className="workflow-name" aria-label="当前工作区">
           <span>工作区</span>
           <span className="workflow-name__sep">/</span>
           <span className="workflow-name__current">{workflow?.name ?? '正在载入工作流'}</span>
         </div>
         <div className="toolbar-actions" aria-label="工作流命令">
-          <IconButton label="新建工作流" onClick={() => { void store.getState().createWorkflow(); }}><Plus size={17} /></IconButton>
-          <IconButton label="资料库" onClick={() => setLibraryOpen(true)}><BookOpen size={17} /></IconButton>
+          <IconButton label="资料库" showLabel onClick={() => setLibraryOpen(true)}><BookOpen size={17} /></IconButton>
           <IconButton
             label="运行"
             onClick={runWorkflow}
@@ -236,8 +242,6 @@ function WorkbenchCanvas({ store, createEdgeId, onOpenAiSettings, onOpenNode }: 
           <IconButton label="缩小" onClick={() => { void zoomOut(); }}><ZoomOut size={17} /></IconButton>
           <IconButton label="适应视图" onClick={() => { void fitView(); }}><Maximize size={17} /></IconButton>
           <span className="toolbar-divider" />
-          <IconButton label="立即保存" onClick={() => { void store.getState().saveNow(); }}><Save size={17} /></IconButton>
-          <IconButton label="删除工作流" onClick={() => { setDeleteTarget(undefined); setDeleteOpen(true); }}><Trash2 size={17} /></IconButton>
           {selectedNode && <IconButton label="删除选中节点" onClick={() => { setDeleteTarget(selectedNode.id); setDeleteOpen(true); }}><Trash2 size={17} /></IconButton>}
           <IconButton label="AI 设置" onClick={() => onOpenAiSettings?.()} disabled={!onOpenAiSettings} disabledReason="AI 设置尚未接入"><Settings size={17} /></IconButton>
         </div>

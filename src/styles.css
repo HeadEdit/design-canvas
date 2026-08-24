@@ -23,6 +23,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, [tabindex]:fo
 .workflow-name__current { overflow: hidden; color: #20252b; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .toolbar-actions { display: flex; align-items: center; gap: 4px; }
 .tool-button { width: 32px; height: 32px; padding: 0; border-radius: 5px; }
+.tool-button--labeled { width: auto; padding: 0 10px; gap: 6px; }
 .toolbar-divider { width: 1px; height: 22px; margin: 0 4px; background: #d8dde3; }
 
 .workbench-body { display: grid; grid-template-columns: 248px 240px minmax(460px, 1fr) 320px; min-height: 0; transition: grid-template-columns 0.22s ease; }

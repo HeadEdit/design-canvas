@@ -28,3 +28,4 @@ npm-debug.log*
 
 # Local tooling caches
 .cache/
+docs/superpowers
